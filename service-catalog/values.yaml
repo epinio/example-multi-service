@@ -1,0 +1,4 @@
+auth:
+  username: examresults
+  password: examresults-dev-password
+  database: examresults

@@ -1,5 +1,7 @@
-# Epinio application manifest. Push with:
-#   cd backend && epinio push -f epinio.yml
+# Epinio application manifest. Push with (the manifest is a positional
+# argument, NOT -f - `epinio push -f epinio.yml` is a real mistake we made
+# and fixed after testing against a live cluster):
+#   cd backend && epinio push epinio.yml
 #
 # Field reference: pkg/api/core/v1/models (ApplicationManifest) in
 # github.com/epinio/epinio - there is no rendered docs page for it yet,
@@ -7,14 +9,23 @@
 name: examresults-backend
 configuration:
   instances: 1
-  # Binds the PostgreSQL instance created from our custom Service Catalog
-  # entry (see service-catalog/README.md). Its values are mounted at
-  # /configurations/examresults-db/<key> inside this app's container -
-  # see backend/src/db/pool.js for how they're read.
-  configurations:
-    - examresults-db
+  # `configuration.configurations` would reference a Configuration by name,
+  # but Service Catalog bindings don't create one of those (confirmed live:
+  # /configurations doesn't exist in the container at all) - bind the DB
+  # separately after the first push instead:
+  #   epinio service bind examresults-postgres examresults-backend
+  #
+  # Verified live that a bound Service Catalog instance injects ONLY
+  # ordinary Kubernetes Service-discovery env vars for host/port (a hashed,
+  # per-instance name like X833E313000B0A5976ACF13934F40_POSTGRESQL_SERVICE_HOST
+  # - see backend/src/db/pool.js's discoverHostPort()) - it does NOT expose
+  # credentials in any form. So PGUSER/PGPASSWORD/PGDATABASE below must match
+  # the auth.* values service-catalog/values.yaml bakes into the catalog
+  # entry (see service-catalog/README.md for why).
   environment:
-    CONFIGURATION_NAME: examresults-db
+    PGUSER: examresults
+    PGPASSWORD: examresults-dev-password
+    PGDATABASE: examresults
     # The report-service doesn't exist yet on a first push, so this starts
     # empty. Once it's pushed, point the backend at its public route:
     #   epinio app update examresults-backend -e REPORT_SERVICE_URL=https://<report-service-route>

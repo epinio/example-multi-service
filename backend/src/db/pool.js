@@ -1,47 +1,37 @@
-const fs = require('fs');
-const path = require('path');
 const { Pool } = require('pg');
 
-// Epinio mounts a bound Configuration's values as files under
-// /configurations/<configuration-name>/<key> (one file per key). It also
-// exposes some of them as env vars, but the exact key/var names depend on
-// the Helm chart backing the Service Catalog entry, so this resolves the
-// connection in three steps, most-explicit first:
-//   1. DATABASE_URL, if something already set one directly.
-//   2. PG* env vars (node-postgres's own convention) - set these via
-//      `epinio app update <app> -e PGHOST=... -e PGUSER=...` if the
-//      catalog entry's secret uses different key names than step 3 guesses.
-//   3. Auto-discovered from the mounted /configurations/<name>/ directory,
-//      trying a few common aliases per field. Run
-//      `epinio app exec examresults-backend -- ls /configurations/<name>`
-//      after binding to see the real file names, and adjust CONFIG_* aliases
-//      below (or just set PG* env vars) if none of the guesses match.
-const CONFIG_MOUNT_ROOT = '/configurations';
-const CONFIGURATION_NAME = process.env.CONFIGURATION_NAME || 'examresults-db';
-
-const FIELD_ALIASES = {
-  host: ['host', 'hostname', 'postgresql-host', 'pghost'],
-  port: ['port', 'postgresql-port', 'pgport'],
-  user: ['username', 'user', 'postgresql-username', 'pguser'],
-  password: ['password', 'postgres-password', 'postgresql-password', 'pgpassword'],
-  database: ['database', 'dbname', 'postgresql-database', 'pgdatabase'],
-};
-
-function readConfigurationDir() {
-  const dir = path.join(CONFIG_MOUNT_ROOT, CONFIGURATION_NAME);
-  if (!fs.existsSync(dir)) return null;
-
-  const values = {};
-  for (const [field, aliases] of Object.entries(FIELD_ALIASES)) {
-    for (const alias of aliases) {
-      const file = path.join(dir, alias);
-      if (fs.existsSync(file)) {
-        values[field] = fs.readFileSync(file, 'utf8').trim();
-        break;
-      }
-    }
+// What actually happens on a live cluster (confirmed by deploying this app
+// and dumping its own environment - see the now-removed /api/_debug route
+// in git history): binding a Service Catalog instance to an app does NOT
+// mount credential files under /configurations, and does NOT inject a
+// DATABASE_URL or PG*-style env var. The only thing the binding gives the
+// app is ordinary Kubernetes Service-discovery env vars - the standard
+// `<SVCNAME>_SERVICE_HOST` / `<SVCNAME>_SERVICE_PORT` pair Kubernetes
+// injects for every Service in the namespace - where <SVCNAME> is a hashed,
+// per-instance name we can't predict ahead of time (e.g.
+// X833E313000B0A5976ACF13934F40_POSTGRESQL_SERVICE_HOST).
+//
+// So: the host/port are discovered at runtime by pattern-matching those
+// env vars (any pair ending in _SERVICE_HOST / _SERVICE_PORT where the port
+// is 5432). The actual credentials never come from Epinio at all - they're
+// set explicitly at `epinio service create` time via Bitnami's chart
+// `auth.*` values (see service-catalog/create-catalog-entry.sh) and
+// mirrored into this app's own PGUSER/PGPASSWORD/PGDATABASE env vars in
+// backend/epinio.yml. That's a deliberate, documented choice for a teaching
+// example, not a workaround for something Epinio was expected to automate.
+function discoverHostPort() {
+  if (process.env.PGHOST) {
+    return { host: process.env.PGHOST, port: Number(process.env.PGPORT || 5432) };
   }
-  return values;
+
+  const hostVar = Object.keys(process.env).find(
+    (key) => key.endsWith('_SERVICE_HOST') && process.env[`${key.replace(/_HOST$/, '_PORT')}`] === '5432'
+  );
+  if (hostVar) {
+    return { host: process.env[hostVar], port: 5432 };
+  }
+
+  return null; // falls through to the local-dev default below
 }
 
 function resolveConnectionConfig() {
@@ -49,24 +39,14 @@ function resolveConnectionConfig() {
     return { connectionString: process.env.DATABASE_URL };
   }
 
-  if (process.env.PGHOST) {
+  const hostPort = discoverHostPort();
+  if (hostPort) {
     return {
-      host: process.env.PGHOST,
-      port: process.env.PGPORT ? Number(process.env.PGPORT) : 5432,
+      host: hostPort.host,
+      port: hostPort.port,
       user: process.env.PGUSER,
       password: process.env.PGPASSWORD,
       database: process.env.PGDATABASE,
-    };
-  }
-
-  const discovered = readConfigurationDir();
-  if (discovered && discovered.host) {
-    return {
-      host: discovered.host,
-      port: discovered.port ? Number(discovered.port) : 5432,
-      user: discovered.user,
-      password: discovered.password,
-      database: discovered.database,
     };
   }
 

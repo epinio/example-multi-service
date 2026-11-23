@@ -5,11 +5,18 @@ const { pool } = require('./pool');
 async function migrate() {
   const sql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
   await pool.query(sql);
-  console.log('Migration complete: schema is up to date.');
-  await pool.end();
 }
 
-migrate().catch((err) => {
-  console.error('Migration failed:', err);
-  process.exit(1);
-});
+if (require.main === module) {
+  migrate()
+    .then(() => {
+      console.log('Migration complete: schema is up to date.');
+      return pool.end();
+    })
+    .catch((err) => {
+      console.error('Migration failed:', err);
+      process.exit(1);
+    });
+}
+
+module.exports = { migrate };
