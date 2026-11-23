@@ -1,0 +1,8 @@
+# Used by `epinio app watch frontend` for a fast inner dev loop: on every
+# save, Epinio runs build_cmd locally and pushes only the changed files
+# into the already-running container instead of doing a full
+# `epinio push` rebuild. See docs.epinio.io -> How-to -> app_watch.
+#
+# (The ticket for this example refers to this file as "epinio-sync.yml";
+# the shipped CLI feature actually reads ".epinio-sync.yaml".)
+build_cmd: "npm run build"

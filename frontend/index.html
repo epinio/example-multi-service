@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Exam Results</title>
+    <!-- The placeholder below is replaced by server.js at request time
+         with the real backend URL, since a container image built once
+         by a buildpack can still be pointed at a different API per
+         deploy. In `npm run dev` it's left as-is and api.js falls back
+         to the Vite proxy instead. -->
+    <script>window.__CONFIG__ = { API_URL: "__RUNTIME_CONFIG_API_URL__" };</script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

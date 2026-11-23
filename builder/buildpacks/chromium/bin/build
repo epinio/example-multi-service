@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+layers_dir="$1"
+layer_dir="${layers_dir}/chromium-deps"
+mkdir -p "${layer_dir}" "${layer_dir}/env.launch"
+
+# Debian packages Puppeteer's own troubleshooting guide lists as required
+# for headless Chrome to launch on Debian/Ubuntu-based images:
+# https://pptr.dev/troubleshooting#running-puppeteer-in-docker
+packages=(
+  ca-certificates fonts-liberation libasound2 libatk-bridge2.0-0 libatk1.0-0
+  libcairo2 libcups2 libdbus-1-3 libdrm2 libgbm1 libglib2.0-0 libgtk-3-0
+  libnspr4 libnss3 libpango-1.0-0 libpangocairo-1.0-0 libx11-6 libx11-xcb1
+  libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6
+  libxrandr2 libxrender1 libxshmfence1 libxss1 libxtst6 xdg-utils
+)
+
+work_dir="$(mktemp -d)"
+cd "${work_dir}"
+
+echo "---> Chromium Runtime Dependencies buildpack"
+echo "Downloading ${#packages[@]} packages for headless Chromium..."
+
+apt-get update -y
+# `apt-get download` (not install) fetches the .deb files without needing
+# root or touching the base image; `dpkg -x` then just unpacks their file
+# contents into our layer directory, same idea paketo-buildpacks/apt uses.
+apt-get download "${packages[@]}"
+
+for deb in *.deb; do
+  dpkg -x "${deb}" "${layer_dir}"
+done
+
+cd - > /dev/null
+rm -rf "${work_dir}"
+
+# Make the unpacked shared libraries (and any binaries, e.g. xdg-utils)
+# available both for the rest of the build (so a build-time `npm install`
+# postinstall step could use them) and at launch, when Puppeteer actually
+# spawns the Chromium binary it downloaded into node_modules.
+lib_dirs=$(find "${layer_dir}" -type d \( -name 'x86_64-linux-gnu' -o -name 'i386-linux-gnu' \) | paste -sd: -)
+bin_dirs=$(find "${layer_dir}" -type d -name bin | paste -sd: -)
+
+printf '%s' "${lib_dirs}" > "${layer_dir}/env.launch/LD_LIBRARY_PATH.append"
+printf ':' > "${layer_dir}/env.launch/LD_LIBRARY_PATH.delim"
+
+if [ -n "${bin_dirs}" ]; then
+  printf '%s' "${bin_dirs}" > "${layer_dir}/env.launch/PATH.append"
+  printf ':' > "${layer_dir}/env.launch/PATH.delim"
+fi
+
+cat > "${layers_dir}/chromium-deps.toml" <<EOF
+launch = true
+cache = true
+build = false
+EOF
+
+echo "Chromium runtime dependencies installed into layer: ${layer_dir}"

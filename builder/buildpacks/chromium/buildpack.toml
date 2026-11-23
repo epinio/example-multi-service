@@ -1,0 +1,17 @@
+api = "0.10"
+
+[buildpack]
+id = "examresults/chromium-deps"
+version = "1.0.0"
+name = "Chromium Runtime Dependencies"
+description = """
+Installs the OS-level shared libraries that a bundled, Puppeteer-downloaded
+Chromium needs to actually launch (the classic "error while loading shared
+libraries: libnss3.so" failure when running headless Chrome in a minimal
+container). Paketo's Node.js buildpack has no reason to know about this, so
+Puppeteer-based apps need a custom builder that adds this buildpack ahead of
+it - this is that buildpack.
+"""
+
+[[stacks]]
+id = "*"

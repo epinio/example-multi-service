@@ -1,0 +1,38 @@
+# Builder definition for the report-service's custom builder image.
+# Build it with the `pack` CLI (https://buildpacks.io/docs/for-platform-operators/how-to/build-inputs/builder/):
+#
+#   pack builder create ghcr.io/<your-org>/examresults-chromium-builder:latest \
+#     --config builder.toml
+#   docker push ghcr.io/<your-org>/examresults-chromium-builder:latest
+#
+# Then reference that image as `staging.builder` in report-service/epinio.yml.
+#
+# Base images and the current Paketo Node.js buildpack reference/version
+# should be checked against https://github.com/paketo-buildpacks/nodejs
+# (releases) and https://paketo.io/docs/howto/nodejs/ before building -
+# pin exact versions there rather than trusting whatever is in this file,
+# since Paketo buildpack releases move faster than this example repo.
+
+[[buildpacks]]
+id = "examresults/chromium-deps"
+uri = "buildpacks/chromium"
+
+[[buildpacks]]
+id = "paketo-buildpacks/nodejs"
+# Fill in the current version from https://github.com/paketo-buildpacks/nodejs/releases
+uri = "docker://docker.io/paketobuildpacks/nodejs:<pin-current-version>"
+
+[[order]]
+[[order.group]]
+id = "examresults/chromium-deps"
+version = "1.0.0"
+
+[[order.group]]
+id = "paketo-buildpacks/nodejs"
+# Must match the version pinned above.
+version = "<pin-current-version>"
+
+[stack]
+id = "io.buildpacks.stacks.jammy"
+build-image = "paketobuildpacks/build-jammy-base"
+run-image = "paketobuildpacks/run-jammy-base"

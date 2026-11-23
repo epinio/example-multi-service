@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+# This buildpack always participates: it has nothing to provide to other
+# buildpacks and nothing to require from them, it just needs to run before
+# the Node.js buildpack so its layer (and the shared libraries in it) exist
+# by the time `npm install` downloads Chromium. Order is set in builder.toml,
+# not here.
+exit 0

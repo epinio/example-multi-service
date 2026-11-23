@@ -1,0 +1,8 @@
+# For local docker-compose testing only. Epinio deploys this app from
+# source via a buildpack (`epinio push`), not from this Dockerfile.
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install --omit=dev
+COPY . .
+CMD ["sh", "-c", "node src/db/migrate.js && npm start"]

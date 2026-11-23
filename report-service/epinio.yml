@@ -1,0 +1,12 @@
+# Push with: cd report-service && epinio push -f epinio.yml
+#
+# staging.builder points at the custom builder image built from ../builder
+# (see builder/README.md) - this is what makes the Puppeteer/Chromium PDF
+# rendering possible at all in a buildpack-based deploy.
+name: examresults-report-service
+configuration:
+  instances: 1
+staging:
+  builder: "ghcr.io/<your-org>/examresults-chromium-builder:latest"
+origin:
+  path: .

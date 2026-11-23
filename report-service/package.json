@@ -1,0 +1,16 @@
+{
+  "name": "examresults-report-service",
+  "version": "1.0.0",
+  "description": "Renders student report cards as PDF using headless Chromium",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "puppeteer": "^23.4.0"
+  }
+}

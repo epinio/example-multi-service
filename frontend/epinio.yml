@@ -1,0 +1,11 @@
+# Push with: cd frontend && epinio push -f epinio.yml
+name: examresults-frontend
+configuration:
+  instances: 1
+  environment:
+    # Empty on a first push since examresults-backend's route isn't known
+    # yet. Once the backend is pushed, point the frontend at its route:
+    #   epinio app update examresults-frontend -e API_URL=https://<backend-route>
+    API_URL: ""
+origin:
+  path: .

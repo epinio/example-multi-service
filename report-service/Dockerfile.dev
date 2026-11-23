@@ -1,0 +1,19 @@
+# For local docker-compose testing only. Epinio deploys this app from
+# source via the custom builder in ../builder (`epinio push`), not from
+# this Dockerfile. This just uses the official Puppeteer image (which
+# already bundles Chromium + its runtime libraries) so the app logic can
+# be exercised locally without first needing that custom builder image.
+FROM ghcr.io/puppeteer/puppeteer:23.4.0
+WORKDIR /app
+USER root
+COPY package*.json ./
+RUN npm install --omit=dev
+# The base image preinstalls a Chrome build matched to ITS OWN puppeteer
+# version, which can be older than the one in package.json; fetch the
+# exact Chrome build our pinned puppeteer version expects instead of
+# relying on whatever happens to already be in the image's cache. Stays
+# on USER root throughout (app code already passes --no-sandbox) so this
+# install and the app's own cache-dir lookup land in the same place.
+RUN npx puppeteer browsers install chrome
+COPY . .
+CMD ["node", "src/index.js"]

@@ -1,0 +1,23 @@
+# Epinio application manifest. Push with:
+#   cd backend && epinio push -f epinio.yml
+#
+# Field reference: pkg/api/core/v1/models (ApplicationManifest) in
+# github.com/epinio/epinio - there is no rendered docs page for it yet,
+# so this was written against the Go struct directly.
+name: examresults-backend
+configuration:
+  instances: 1
+  # Binds the PostgreSQL instance created from our custom Service Catalog
+  # entry (see service-catalog/README.md). Its values are mounted at
+  # /configurations/examresults-db/<key> inside this app's container -
+  # see backend/src/db/pool.js for how they're read.
+  configurations:
+    - examresults-db
+  environment:
+    CONFIGURATION_NAME: examresults-db
+    # The report-service doesn't exist yet on a first push, so this starts
+    # empty. Once it's pushed, point the backend at its public route:
+    #   epinio app update examresults-backend -e REPORT_SERVICE_URL=https://<report-service-route>
+    REPORT_SERVICE_URL: ""
+origin:
+  path: .
